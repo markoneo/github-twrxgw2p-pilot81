@@ -1,0 +1,408 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Enhanced animations */
+@keyframes blob {
+  0% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(30px, -50px) scale(1.1);
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.9);
+  }
+  100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+}
+
+.animate-blob {
+  animation: blob 7s infinite;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+/* Glassmorphism utilities */
+.glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Enhanced focus states */
+.focus-enhanced:focus {
+  outline: 2px solid rgba(34, 197, 94, 0.5);
+  outline-offset: 2px;
+}
+
+/* Reset and base styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  height: 100%;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+body {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: #1f2937;
+  background-color: #f9fafb;
+  touch-action: manipulation;
+  overflow-x: hidden;
+}
+
+/* Optimize scrolling performance */
+.scrollable, .will-change-scroll {
+  -webkit-overflow-scrolling: touch;
+  will-change: scroll-position, transform;
+  contain: layout style paint;
+}
+
+/* Hardware acceleration for animations */
+.will-change-transform {
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Optimize repaints and compositing */
+.optimized-animation {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Basic button fix for mobile */
+button {
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#root {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Improved button styling for mobile */
+button, a, .clickable {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+@media (max-width: 768px) {
+  button, a, .button-like {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  input, select, textarea {
+    font-size: 16px !important; /* Prevent iOS zoom on focus */
+  }
+}
+
+/* Fix for iOS sticky hover states */
+@media (hover: hover) {
+  button:hover, a:hover {
+    opacity: 0.9;
+  }
+}
+
+/* Optimized active states for mobile */
+button:active, a:active, .clickable:active {
+  opacity: 0.7;
+  transform: scale(0.98) translateZ(0);
+  transition: transform 0.1s ease, opacity 0.1s ease;
+}
+
+/* Toggle style */
+.toggle-checkbox:checked {
+  right: 0;
+  border-color: #22c55e;
+}
+.toggle-label {
+  transition: background-color 0.2s ease;
+}
+.toggle-checkbox:checked + .toggle-label {
+  background-color: #22c55e;
+}
+
+/* Fix for mobile bottom navbar */
+.has-bottom-nav {
+  padding-bottom: 70px;
+}
+
+/* Fix active buttons */
+.active-button {
+  transform: scale(0.98) translateZ(0);
+  transition: transform 0.1s ease;
+}
+
+/* Mobile navigation button */
+.mobile-nav-button {
+  padding: 12px;
+  border-radius: 8px;
+}
+
+/* Prevent pull-to-refresh on mobile */
+html, body {
+  overscroll-behavior-y: none;
+}
+
+/* Fixed positioning for bottom nav */
+.fixed-bottom {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+}
+
+/* Disable user select for buttons and icons */
+button, svg, .no-select {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Fix position for overlays and fixed elements */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  touch-action: none;
+}
+
+/* Fix for iOS safari positioning */
+@supports (-webkit-touch-callout: none) {
+  .ios-fix {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .fixed-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Fix layout on rotation */
+@media screen and (orientation: landscape) {
+  .landscape-fix {
+    height: auto;
+    min-height: 100vh;
+  }
+}
+
+/* Voucher-specific mobile optimizations */
+@media (max-width: 480px) {
+  .voucher-container {
+    max-width: 100%;
+    padding: 12px;
+  }
+  
+  .voucher-section {
+    margin-bottom: 12px;
+  }
+  
+  .voucher-title {
+    font-size: 16px;
+  }
+  
+  .voucher-info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  
+  .voucher-info-label {
+    font-size: 10px;
+  }
+  
+  .voucher-info-value {
+    font-size: 13px;
+    word-break: break-word;
+  }
+  
+  .voucher-logo {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+  }
+}
+
+/* Print-specific styling */
+@media print {
+  @page {
+    size: 80mm 210mm;
+    margin: 0;
+  }
+  
+  body {
+    width: 80mm;
+    margin: 0;
+    padding: 0;
+  }
+  
+  .voucher-print-container {
+    width: 100%;
+    padding: 5mm;
+  }
+  
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* Optimized animation utilities */
+@keyframes blob {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  25% {
+    transform: translate3d(20px, -50px, 0) scale(1.1);
+  }
+  50% {
+    transform: translate3d(0, -20px, 0) scale(1);
+  }
+  75% {
+    transform: translate3d(-20px, -50px, 0) scale(0.9);
+  }
+}
+
+.animate-blob {
+  animation: blob 8s infinite ease-in-out;
+  will-change: transform;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+/* Optimized scroll-driven animations */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 20px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.scroll-fade-up {
+  opacity: 0;
+  animation: fade-up 0.6s ease-out forwards;
+}
+
+/* Parallax effect for backgrounds */
+.parallax {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* Optimized transitions for all hover states */
+a, button, .transition-all {
+  transition-property: transform, opacity, background-color, border-color, box-shadow;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  transition-duration: 200ms;
+}
+
+/* Optimized glass morphism effects */
+.glass {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  will-change: backdrop-filter;
+}
+
+/* Smooth scroll snap - optimized */
+.scroll-snap-container {
+  scroll-snap-type: y mandatory;
+  height: 100vh;
+  overflow-y: scroll;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+.scroll-snap-item {
+  scroll-snap-align: start;
+  height: 100vh;
+}
+
+/* Optimizations for better performance */
+.performance-optimized {
+  contain: layout style paint;
+  content-visibility: auto;
+  contain-intrinsic-size: 200px;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  .animate-blob {
+    animation: none;
+  }
+}
+
+/* GPU acceleration helpers */
+.gpu-accelerated {
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Optimized grid layouts */
+.optimized-grid {
+  contain: layout style;
+  will-change: auto;
+}

@@ -117,33 +117,33 @@ export function DriverDataProvider({ children, driverId, driverUuid, authToken }
       console.log('Fetching projects for driver UUID:', driverUuid);
       console.log('Using auth token:', authToken ? 'Yes' : 'No');
 
-      // Use the main supabase client with driver context set
-      const { data: projectsData, error: projectsError } = await supabase
-        .from('projects')
-        .select(`
-          id,
-          company_id,
-          car_type_id,
-          client_name,
-          client_phone,
-          pickup_location,
-          dropoff_location,
-          date,
-          time,
-          passengers,
-          price,
-          driver_fee,
-          status,
-          payment_status,
-          description,
-          booking_id,
-          acceptance_status,
-          created_at
-        `)
-        .eq('driver_id', driverUuid)
-        .eq('status', 'active')  // Only fetch active projects for drivers
-        .order('date', { ascending: true })
-        .order('time', { ascending: true });
+      const { data: projectsData, error: projectsError } = await executeWithDriverContext(() => 
+        supabase
+          .from('projects')
+          .select(`
+            id,
+            company_id,
+            car_type_id,
+            client_name,
+            client_phone,
+            pickup_location,
+            dropoff_location,
+            date,
+            time,
+            passengers,
+            price,
+            driver_fee,
+            status,
+            payment_status,
+            description,
+            booking_id,
+            acceptance_status,
+            created_at
+          `)
+          .eq('driver_id', driverUuid)
+          .order('date', { ascending: true })
+          .order('time', { ascending: true })
+      );
 
       if (projectsError) {
         console.error('Error fetching driver projects:', projectsError);
@@ -152,38 +152,6 @@ export function DriverDataProvider({ children, driverId, driverUuid, authToken }
 
       console.log('Fetched driver projects:', projectsData?.length || 0, 'projects');
       setProjects(projectsData || []);
-
-      // Fetch companies for the projects
-      if (projectsData && projectsData.length > 0) {
-        const companyIds = [...new Set(projectsData.map(p => p.company_id).filter(Boolean))];
-        
-        if (companyIds.length > 0) {
-          const { data: companiesData, error: companiesError } = await supabase
-            .from('companies')
-            .select('id, name, phone')
-            .in('id', companyIds);
-
-          if (companiesError) {
-            console.error('Error fetching companies:', companiesError);
-            // Don't throw here, we can still show projects without company details
-          } else {
-            setCompanies(companiesData || []);
-          }
-        }
-      }
-      
-      // Also fetch car types
-      const carTypeIds = [...new Set((projectsData || []).map(p => p.car_type_id).filter(Boolean))];
-      if (carTypeIds.length > 0) {
-        const { data: carTypesData, error: carTypesError } = await supabase
-          .from('car_types')
-          .select('id, name, capacity, description')
-          .in('id', carTypeIds);
-          
-        if (!carTypesError && carTypesData) {
-          setCarTypes(carTypesData);
-        }
-      }
 
       setError(null);
       setRetryCount(0);
@@ -199,7 +167,7 @@ export function DriverDataProvider({ children, driverId, driverUuid, authToken }
         }, 2000 * (retryCount + 1)); // Exponential backoff
       }
     }
-  }, [driverUuid, retryCount, authToken]);
+  }, [driverUuid, retryCount, executeWithDriverContext]);
 
   // Update project acceptance status
   const updateProjectStatus = useCallback(async (projectId: string, status: 'accepted' | 'started' | 'declined' | 'completed') => {
@@ -227,11 +195,13 @@ export function DriverDataProvider({ children, driverId, driverUuid, authToken }
 
       console.log('Sending updates to database:', updates);
 
-      const { error } = await supabase
-        .from('projects')
-        .update(updates)
-        .eq('id', projectId)
-        .eq('driver_id', driverUuid);
+      const { error } = await executeWithDriverContext(() =>
+        supabase
+          .from('projects')
+          .update(updates)
+          .eq('id', projectId)
+          .eq('driver_id', driverUuid)
+      );
 
       if (error) {
         console.error('Database update error:', error);
@@ -259,15 +229,15 @@ export function DriverDataProvider({ children, driverId, driverUuid, authToken }
       console.error('Failed to update project status:', err);
       throw err;
     }
-  }, [driverUuid]);
+  }, [driverUuid, executeWithDriverContext]);
 
   // Refresh projects manually
   const refreshProjects = useCallback(async () => {
     setLoading(true);
     setError(null);
-    await fetchDriverProjects();
+    await fetchAllData();
     setLoading(false);
-  }, [fetchDriverProjects]);
+  }, [fetchAllData]);
 
   // Initial data fetch
   useEffect(() => {
@@ -277,7 +247,7 @@ export function DriverDataProvider({ children, driverId, driverUuid, authToken }
       if (!mounted) return;
       
       setLoading(true);
-      await fetchDriverProjects();
+      await fetchAllData();
       
       if (mounted) {
         setLoading(false);
@@ -289,20 +259,21 @@ export function DriverDataProvider({ children, driverId, driverUuid, authToken }
     return () => {
       mounted = false;
     };
-  }, [fetchDriverProjects]);
+  }, [fetchAllData]);
 
   // Auto-retry on error
   useEffect(() => {
     if (error && retryCount > 0 && retryCount <= 3) {
       console.log(`Auto-retrying data fetch (attempt ${retryCount + 1})`);
-      fetchDriverProjects().finally(() => setLoading(false));
+      fetchAllData().finally(() => setLoading(false));
     }
-  }, [retryCount, error, fetchDriverProjects]);
+  }, [retryCount, error, fetchAllData]);
 
   const value = {
     projects,
     companies,
     carTypes,
+    driverInfo,
     loading,
     error,
     refreshProjects,

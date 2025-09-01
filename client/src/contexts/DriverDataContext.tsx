@@ -80,31 +80,11 @@ export function DriverDataProvider({ children, driverId, driverUuid }: DriverDat
     try {
       console.log('Fetching projects for driver UUID:', driverUuid);
 
+      // Use the secure function that sets proper context for RLS
       const { data: projectsData, error: projectsError } = await supabase
-          .from('projects')
-          .select(`
-            id,
-            company_id,
-            car_type_id,
-            client_name,
-            client_phone,
-            pickup_location,
-            dropoff_location,
-            date,
-            time,
-            passengers,
-            price,
-            driver_fee,
-            status,
-            payment_status,
-            description,
-            booking_id,
-            acceptance_status,
-            created_at
-          `)
-          .eq('driver_id', driverUuid)
-          .order('date', { ascending: true })
-          .order('time', { ascending: true });
+        .rpc('get_driver_projects_with_context', {
+          driver_uuid: driverUuid
+        });
 
       if (projectsError) {
         console.error('Error fetching driver projects:', projectsError);
@@ -172,36 +152,21 @@ export function DriverDataProvider({ children, driverId, driverUuid }: DriverDat
     try {
       console.log('Updating project status:', { projectId, status });
       
-      const updates: any = {};
-
-      // Handle different status types
-      if (status === 'completed') {
-        // For completion, update the main project status, not acceptance_status
-        updates.status = 'completed';
-        updates.completed_at = new Date().toISOString();
-        updates.completed_by = driverUuid;
-      } else {
-        // For other statuses, update acceptance_status
-        updates.acceptance_status = status;
-        
-        // If accepting, set accepted_at and accepted_by
-        if (status === 'accepted') {
-          updates.accepted_at = new Date().toISOString();
-          updates.accepted_by = driverUuid;
-        }
-      }
-
-      console.log('Sending updates to database:', updates);
-
-      const { error } = await supabase
-          .from('projects')
-          .update(updates)
-          .eq('id', projectId)
-          .eq('driver_id', driverUuid);
+      // Use the secure function to update project status
+      const { data: updateResult, error } = await supabase
+        .rpc('update_driver_project_status', {
+          project_uuid: projectId,
+          driver_uuid: driverUuid,
+          new_status: status
+        });
 
       if (error) {
         console.error('Database update error:', error);
         throw error;
+      }
+
+      if (!updateResult) {
+        throw new Error('Failed to update project - project not found or not assigned to this driver');
       }
 
       // Update local state

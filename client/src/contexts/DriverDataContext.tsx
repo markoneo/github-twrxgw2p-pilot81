@@ -74,20 +74,37 @@ export function DriverDataProvider({ children, driverId, driverUuid, authToken }
 
   // Create driver-specific Supabase client
   const driverClient = React.useMemo(() => {
-    if (authToken) {
-      return createClient(
-        import.meta.env.VITE_SUPABASE_URL || "https://xvurxeuwgzmzkpgkekah.supabase.co",
-        import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh2dXJ4ZXV3Z3ptemtwZ2tla2FoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQzMDkyNzgsImV4cCI6MjA1OTg4NTI3OH0.dRa4m8yD-UV-SbBsyaolOz8sY_PmsgfRePYgkOmfb4s",
-        {
-          auth: { autoRefreshToken: false, persistSession: false },
-          global: {
-            headers: { 'x-driver-token': authToken }
-          }
-        }
-      );
-    }
+    // Always use the main supabase client but set driver context
     return supabase;
   }, [authToken]);
+
+  // Set driver context for RLS policies
+  useEffect(() => {
+    const setDriverContext = async () => {
+      if (authToken && driverUuid) {
+        try {
+          console.log('Setting driver context for RLS:', { authToken, driverUuid });
+          
+          // Set the driver token in Supabase context for RLS
+          await supabase.rpc('set_config', {
+            setting_name: 'app.driver_token',
+            setting_value: authToken
+          });
+          
+          await supabase.rpc('set_config', {
+            setting_name: 'app.driver_uuid',
+            setting_value: driverUuid
+          });
+          
+          console.log('Driver context set successfully');
+        } catch (error) {
+          console.error('Failed to set driver context:', error);
+        }
+      }
+    };
+    
+    setDriverContext();
+  }, [authToken, driverUuid]);
 
   // Fetch driver-specific projects
   const fetchDriverProjects = useCallback(async () => {
@@ -98,9 +115,10 @@ export function DriverDataProvider({ children, driverId, driverUuid, authToken }
 
     try {
       console.log('Fetching projects for driver UUID:', driverUuid);
+      console.log('Using auth token:', authToken ? 'Yes' : 'No');
 
-      // Use driver client for queries
-      const { data: projectsData, error: projectsError } = await driverClient
+      // Use the main supabase client with driver context set
+      const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
         .select(`
           id,
@@ -123,6 +141,7 @@ export function DriverDataProvider({ children, driverId, driverUuid, authToken }
           created_at
         `)
         .eq('driver_id', driverUuid)
+        .eq('status', 'active')  // Only fetch active projects for drivers
         .order('date', { ascending: true })
         .order('time', { ascending: true });
 
@@ -139,7 +158,7 @@ export function DriverDataProvider({ children, driverId, driverUuid, authToken }
         const companyIds = [...new Set(projectsData.map(p => p.company_id).filter(Boolean))];
         
         if (companyIds.length > 0) {
-          const { data: companiesData, error: companiesError } = await driverClient
+          const { data: companiesData, error: companiesError } = await supabase
             .from('companies')
             .select('id, name, phone')
             .in('id', companyIds);
@@ -150,6 +169,19 @@ export function DriverDataProvider({ children, driverId, driverUuid, authToken }
           } else {
             setCompanies(companiesData || []);
           }
+        }
+      }
+      
+      // Also fetch car types
+      const carTypeIds = [...new Set((projectsData || []).map(p => p.car_type_id).filter(Boolean))];
+      if (carTypeIds.length > 0) {
+        const { data: carTypesData, error: carTypesError } = await supabase
+          .from('car_types')
+          .select('id, name, capacity, description')
+          .in('id', carTypeIds);
+          
+        if (!carTypesError && carTypesData) {
+          setCarTypes(carTypesData);
         }
       }
 
@@ -167,7 +199,7 @@ export function DriverDataProvider({ children, driverId, driverUuid, authToken }
         }, 2000 * (retryCount + 1)); // Exponential backoff
       }
     }
-  }, [driverUuid, retryCount, driverClient]);
+  }, [driverUuid, retryCount, authToken]);
 
   // Update project acceptance status
   const updateProjectStatus = useCallback(async (projectId: string, status: 'accepted' | 'started' | 'declined' | 'completed') => {
@@ -195,7 +227,7 @@ export function DriverDataProvider({ children, driverId, driverUuid, authToken }
 
       console.log('Sending updates to database:', updates);
 
-      const { error } = await driverClient
+      const { error } = await supabase
         .from('projects')
         .update(updates)
         .eq('id', projectId)
@@ -227,7 +259,7 @@ export function DriverDataProvider({ children, driverId, driverUuid, authToken }
       console.error('Failed to update project status:', err);
       throw err;
     }
-  }, [driverUuid, driverClient]);
+  }, [driverUuid]);
 
   // Refresh projects manually
   const refreshProjects = useCallback(async () => {

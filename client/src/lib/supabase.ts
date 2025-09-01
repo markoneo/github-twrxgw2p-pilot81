@@ -63,40 +63,6 @@ export const getSupabaseClient = (): SupabaseClient => {
 // Export the singleton instance
 export const supabase = getSupabaseClient();
 
-// Driver-specific client with enhanced configuration
-export const getDriverSupabaseClient = () => {
-  const client = getSupabaseClient();
-  
-  // Set driver-specific configuration for RLS
-  return {
-    ...client,
-    setDriverContext: async (driverId: string, driverUuid: string, authToken?: string) => {
-      try {
-        // Set custom claims for RLS policies
-        await client.rpc('set_config', {
-          setting_name: 'app.driver_id',
-          setting_value: driverId
-        });
-        
-        await client.rpc('set_config', {
-          setting_name: 'app.driver_uuid', 
-          setting_value: driverUuid
-        });
-        
-        // Set driver token if provided
-        if (authToken) {
-          await client.rpc('set_config', {
-            setting_name: 'app.driver_token',
-            setting_value: authToken
-          });
-        }
-      } catch (error) {
-        console.warn('Could not set driver context:', error);
-      }
-    }
-  };
-};
-
 // Test Supabase connection
 export const testConnection = async (): Promise<boolean> => {
   try {

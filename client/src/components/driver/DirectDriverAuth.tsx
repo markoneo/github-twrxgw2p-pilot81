@@ -20,6 +20,7 @@ export default function DirectDriverAuth() {
 
       try {
         setStatus('loading');
+        console.log('Authenticating with token:', token);
         
         // Use the secure function to get driver by token
         const { data: driverData, error } = await supabase
@@ -29,12 +30,14 @@ export default function DirectDriverAuth() {
 
         if (error || !driverData || driverData.length === 0) {
           console.error('Driver authentication error:', error);
+          console.log('No driver found for token:', token);
           setStatus('error');
           setMessage('Invalid or expired authentication link. Please contact your dispatcher.');
           return;
         }
 
         const driver = driverData[0];
+        console.log('Driver authenticated successfully:', driver);
 
         // Update last login timestamp
         // Only update last_login if the column exists
@@ -51,6 +54,13 @@ export default function DirectDriverAuth() {
         setDriverInfo(driver);
         setStatus('success');
         setMessage(`Welcome back, ${driver.name}!`);
+        
+        console.log('Navigating to driver dashboard with state:', {
+          driverId: driver.license,
+          driverName: driver.name,
+          driverUuid: driver.id,
+          authToken: token
+        });
 
         // Auto-login after 2 seconds
         setTimeout(() => {
@@ -60,7 +70,7 @@ export default function DirectDriverAuth() {
               driverId: driver.license,
               driverName: driver.name,
               driverUuid: driver.id,
-              authToken: driver.auth_token
+              authToken: token  // Use the token from URL params
             }
           });
         }, 2000);

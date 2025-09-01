@@ -292,8 +292,16 @@ const DashboardContent = ({ driverName, onLogout }: {
   driverName: string; 
   onLogout: () => void;
 }) => {
-  const { projects, companies, carTypes, loading, error, refreshProjects, retryCount } = useDriverData();
+  const { projects, companies, carTypes, loading, error, refreshProjects, retryCount, driverInfo } = useDriverData();
   const [refreshing, setRefreshing] = useState(false);
+  
+  // Debug info
+  useEffect(() => {
+    console.log('DriverDashboard - Projects loaded:', projects.length);
+    console.log('DriverDashboard - Driver info:', driverInfo);
+    console.log('DriverDashboard - Loading:', loading);
+    console.log('DriverDashboard - Error:', error);
+  }, [projects, driverInfo, loading, error]);
 
   const handleRefresh = async () => {
     setRefreshing(true);

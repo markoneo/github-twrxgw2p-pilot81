@@ -149,7 +149,16 @@ const DriverProjectCard = ({ project, companyName, carTypeName }: {
             </div>
             <div className="flex-1">
               <p className="text-xs font-medium text-green-600 uppercase tracking-wider">Pickup</p>
-              <p className="text-sm font-medium text-gray-900 leading-relaxed">{project.pickup_location}</p>
+              <button
+                onClick={() => {
+                  const pickupUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(project.pickup_location)}`;
+                  window.open(pickupUrl, '_blank');
+                }}
+                className="text-sm font-medium text-blue-600 hover:text-blue-800 leading-relaxed text-left underline decoration-dotted hover:decoration-solid transition-all duration-200"
+                title="Open in Google Maps"
+              >
+                {project.pickup_location}
+              </button>
             </div>
           </div>
           
@@ -159,7 +168,33 @@ const DriverProjectCard = ({ project, companyName, carTypeName }: {
             </div>
             <div className="flex-1">
               <p className="text-xs font-medium text-red-600 uppercase tracking-wider">Dropoff</p>
-              <p className="text-sm font-medium text-gray-900 leading-relaxed">{project.dropoff_location}</p>
+              <button
+                onClick={() => {
+                  const dropoffUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(project.dropoff_location)}`;
+                  window.open(dropoffUrl, '_blank');
+                }}
+                className="text-sm font-medium text-blue-600 hover:text-blue-800 leading-relaxed text-left underline decoration-dotted hover:decoration-solid transition-all duration-200"
+                title="Open in Google Maps"
+              >
+                {project.dropoff_location}
+              </button>
+            </div>
+          </div>
+          
+          {/* Route Navigation Button */}
+          <div className="mt-3 pt-3 border-t border-gray-100">
+            <button
+              onClick={() => {
+                const routeUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(project.pickup_location)}&destination=${encodeURIComponent(project.dropoff_location)}`;
+                window.open(routeUrl, '_blank');
+              }}
+              className="w-full flex items-center justify-center space-x-2 bg-blue-50 text-blue-700 py-2 px-4 rounded-lg hover:bg-blue-100 transition-colors duration-200"
+              title="Get directions from pickup to dropoff"
+            >
+              <MapPin className="w-4 h-4" />
+              <span className="text-sm font-medium">Get Directions</span>
+            </button>
+          </div>
             </div>
           </div>
         </div>

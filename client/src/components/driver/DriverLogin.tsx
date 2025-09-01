@@ -26,30 +26,35 @@ export default function DriverLogin({ onDriverLogin }: DriverLoginProps) {
     try {
       console.log('Attempting driver login:', { driverId, pin });
       
-      // Use the secure authentication function
+      // Use the simple authentication function
       const { data: authResult, error: authError } = await supabase
-        .rpc('authenticate_driver', {
-          driver_id: driverId.trim(),
-          driver_pin: pin.trim()
+        .rpc('simple_authenticate_driver', {
+          input_license: driverId.trim(),
+          input_pin: pin.trim()
         });
       
       if (authError) {
         console.error('Authentication error:', authError);
-        setError(`Login failed: ${authError.message}. Please check your credentials.`);
+        setError(`Authentication failed: ${authError.message}`);
         return;
       }
       
       console.log('Authentication result:', authResult);
       
       // Check if authentication was successful
-      if (authResult && authResult.length > 0 && authResult[0].success) {
-        const driverData = authResult[0];
-        console.log('Driver login successful:', driverData);
-        onDriverLogin(driverData.driver_license, driverData.driver_name, driverData.driver_id_result);
+      if (authResult && authResult.length > 0) {
+        const result = authResult[0];
+        
+        if (result.success) {
+          console.log('Driver login successful:', result);
+          onDriverLogin(result.driver_license, result.driver_name, result.driver_id);
+        } else {
+          console.log('Authentication failed:', result.error_message);
+          setError(result.error_message || 'Invalid credentials');
+        }
       } else {
-        console.log('Driver login failed - invalid credentials');
-        const errorMsg = authResult?.[0]?.error_message || 'Invalid Driver ID or PIN';
-        setError(`${errorMsg}. Please check your credentials and try again.`);
+        console.log('No authentication result returned');
+        setError('Authentication failed - no response from server');
       }
     } catch (err) {
       console.error('Driver login error:', err);

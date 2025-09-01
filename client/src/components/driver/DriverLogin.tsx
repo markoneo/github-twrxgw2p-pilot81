@@ -26,13 +26,12 @@ export default function DriverLogin({ onDriverLogin }: DriverLoginProps) {
     try {
       console.log('Attempting driver login:', { driverId, pin });
       
-      // Query drivers table directly to find matching driver
-      const { data: driverData, error: authError } = await supabase
-        .from('drivers')
-        .select('id, name, license, pin')
-        .eq('license', driverId.trim())
-        .eq('pin', pin.trim())
-        .single();
+      // Use the secure authentication function
+      const { data: authResult, error: authError } = await supabase
+        .rpc('authenticate_driver', {
+          license_id: driverId.trim(),
+          pin_code: pin.trim()
+        });
       
       if (authError) {
         console.error('Authentication error:', authError);
@@ -40,9 +39,11 @@ export default function DriverLogin({ onDriverLogin }: DriverLoginProps) {
         return;
       }
       
-      if (driverData) {
-        console.log('Driver login successful:', driverData);
-        onDriverLogin(driverData.license, driverData.name, driverData.id);
+      // Check if authentication was successful
+      if (authResult && authResult.length > 0 && authResult[0].success) {
+        const driverInfo = authResult[0];
+        console.log('Driver login successful:', driverInfo);
+        onDriverLogin(driverInfo.driver_license, driverInfo.driver_name, driverInfo.driver_id);
       } else {
         console.log('Driver login failed - invalid credentials');
         setError('Invalid Driver ID or PIN. Please check your credentials and try again.');

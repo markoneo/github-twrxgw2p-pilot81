@@ -26,6 +26,18 @@ export default function DriverLogin({ onDriverLogin }: DriverLoginProps) {
     try {
       console.log('Attempting driver login:', { driverId, pin });
       
+      // First, check if driver exists for debugging
+      const { data: checkResult, error: checkError } = await supabase
+        .rpc('check_driver_exists', {
+          driver_license: driverId.trim()
+        });
+        
+      if (checkError) {
+        console.error('Error checking driver existence:', checkError);
+      } else {
+        console.log('Driver existence check:', checkResult);
+      }
+      
       // Use the secure authentication function
       const { data: authResult, error: authError } = await supabase
         .rpc('authenticate_driver', {
@@ -35,18 +47,21 @@ export default function DriverLogin({ onDriverLogin }: DriverLoginProps) {
       
       if (authError) {
         console.error('Authentication error:', authError);
-        setError('Login failed. Please check your credentials.');
+        setError(`Login failed: ${authError.message}. Please check your credentials.`);
         return;
       }
       
+      console.log('Authentication result:', authResult);
+      
       // Check if authentication was successful
       if (authResult && authResult.length > 0 && authResult[0].success) {
-        const driverInfo = authResult[0];
-        console.log('Driver login successful:', driverInfo);
-        onDriverLogin(driverInfo.driver_license, driverInfo.driver_name, driverInfo.driver_id);
+        const driverData = authResult[0];
+        console.log('Driver login successful:', driverData);
+        onDriverLogin(driverData.driver_license, driverData.driver_name, driverData.driver_id_result);
       } else {
         console.log('Driver login failed - invalid credentials');
-        setError('Invalid Driver ID or PIN. Please check your credentials and try again.');
+        const errorMsg = authResult?.[0]?.error_message || 'Invalid Driver ID or PIN';
+        setError(`${errorMsg}. Please check your credentials and try again.`);
       }
     } catch (err) {
       console.error('Driver login error:', err);
@@ -133,10 +148,10 @@ export default function DriverLogin({ onDriverLogin }: DriverLoginProps) {
 
           <div className="mt-6 pt-6 border-t border-gray-200 text-center">
             <p className="text-sm text-gray-500">
-              Need help? Contact your dispatcher for a direct access link
+              Need help? Contact your dispatcher for your credentials
             </p>
             <p className="text-xs text-gray-400 mt-2">
-              Enter your Driver ID (provided by your dispatcher)
+              Use your license number as Driver ID and the PIN provided by your dispatcher
             </p>
           </div>
         </div>

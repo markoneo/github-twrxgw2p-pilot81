@@ -122,7 +122,6 @@ function AppContent() {
               <Route path="/completed-projects" element={<ProtectedRoute><CompletedProjects /></ProtectedRoute>} />
               <Route path="/ui-mockup" element={<UIDesignMockup />} />
               <Route path="/driver" element={<DriverApp />} />
-              <Route path="/driver/auth/:token" element={<DirectDriverAuth />} />
             </Routes>
           </Suspense>
         </ErrorBoundary>

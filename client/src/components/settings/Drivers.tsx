@@ -98,25 +98,6 @@ export default function Drivers() {
     }
   };
 
-  const generateDriverLink = (driver: any) => {
-    const baseUrl = import.meta.env.VITE_APP_URL || 'https://www.ridepilot.org';
-    return `${baseUrl}/driver/auth/${String(driver.auth_token || '')}`;
-  };
-
-  const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      alert('Link copied to clipboard!');
-    } catch (err) {
-      console.error('Failed to copy: ', err);
-    }
-  };
-
-  const testDriverLink = (driver: any) => {
-    const link = generateDriverLink(driver);
-    window.open(link, '_blank');
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -273,18 +254,6 @@ export default function Drivers() {
                         className="text-indigo-600 hover:text-indigo-900"
                       >
                         Edit
-                      </button>
-                      <button
-                        onClick={() => testDriverLink(driver)}
-                        className="text-blue-600 hover:text-blue-900"
-                      >
-                        Test Link
-                      </button>
-                      <button
-                        onClick={() => copyToClipboard(generateDriverLink(driver))}
-                        className="text-green-600 hover:text-green-900"
-                      >
-                        Copy Link
                       </button>
                       <button
                         onClick={() => handleDelete(driver.id)}

@@ -30,7 +30,6 @@ interface DriverDashboardProps {
   driverId: string;
   driverName: string;
   driverUuid: string;
-  authToken?: string;
   onLogout: () => void;
 }
 
@@ -652,9 +651,9 @@ const formatTime = (time: string) => {
 };
 
 // Main Dashboard Component
-export default function DriverDashboard({ driverId, driverName, driverUuid, authToken, onLogout }: DriverDashboardProps) {
+export default function DriverDashboard({ driverId, driverName, driverUuid, onLogout }: DriverDashboardProps) {
   return (
-    <DriverDataProvider driverId={driverId} driverUuid={driverUuid} authToken={authToken}>
+    <DriverDataProvider driverId={driverId} driverUuid={driverUuid}>
       <DashboardContent driverName={driverName} onLogout={onLogout} />
     </DriverDataProvider>
   );

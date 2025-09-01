@@ -29,8 +29,8 @@ export default function DriverLogin({ onDriverLogin }: DriverLoginProps) {
       // Use the secure authentication function
       const { data: authResult, error: authError } = await supabase
         .rpc('authenticate_driver', {
-          license_id: driverId.trim(),
-          pin_code: pin.trim()
+          driver_id: driverId.trim(),
+          driver_pin: pin.trim()
         });
       
       if (authError) {

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createClient } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { useParams } from 'react-router-dom';
 
@@ -71,24 +72,21 @@ export function DriverDataProvider({ children, driverId, driverUuid, authToken }
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
-  // Set driver token in Supabase client for RLS
-  useEffect(() => {
-    const setDriverContext = async () => {
-      if (authToken) {
-        try {
-          // Set the driver token for RLS policies
-          await supabase.rpc('set_config', {
-            setting_name: 'app.driver_token',
-            setting_value: authToken
-          });
-          console.log('Driver token set for RLS:', authToken);
-        } catch (error) {
-          console.warn('Could not set driver token context:', error);
+  // Create driver-specific Supabase client
+  const driverClient = React.useMemo(() => {
+    if (authToken) {
+      return createClient(
+        import.meta.env.VITE_SUPABASE_URL || "https://xvurxeuwgzmzkpgkekah.supabase.co",
+        import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh2dXJ4ZXV3Z3ptemtwZ2tla2FoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQzMDkyNzgsImV4cCI6MjA1OTg4NTI3OH0.dRa4m8yD-UV-SbBsyaolOz8sY_PmsgfRePYgkOmfb4s",
+        {
+          auth: { autoRefreshToken: false, persistSession: false },
+          global: {
+            headers: { 'x-driver-token': authToken }
+          }
         }
-      }
-    };
-
-    setDriverContext();
+      );
+    }
+    return supabase;
   }, [authToken]);
 
   // Fetch driver-specific projects
@@ -101,8 +99,8 @@ export function DriverDataProvider({ children, driverId, driverUuid, authToken }
     try {
       console.log('Fetching projects for driver UUID:', driverUuid);
 
-      // Set driver token in headers if available
-      let query = supabase
+      // Use driver client for queries
+      const { data: projectsData, error: projectsError } = await driverClient
         .from('projects')
         .select(`
           id,
@@ -128,50 +126,6 @@ export function DriverDataProvider({ children, driverId, driverUuid, authToken }
         .order('date', { ascending: true })
         .order('time', { ascending: true });
 
-      // If we have an auth token, set it in the request context
-      if (authToken) {
-        // Create a new client instance with the driver token
-        const driverClient = supabase.constructor(
-          supabase.supabaseUrl, 
-          supabase.supabaseKey,
-          {
-            auth: { autoRefreshToken: false, persistSession: false },
-            global: {
-              headers: { 'x-driver-token': authToken }
-            }
-          }
-        );
-        
-        query = driverClient
-          .from('projects')
-          .select(`
-            id,
-            company_id,
-            car_type_id,
-            client_name,
-            client_phone,
-            pickup_location,
-            dropoff_location,
-            date,
-            time,
-            passengers,
-            price,
-            driver_fee,
-            status,
-            payment_status,
-            description,
-            booking_id,
-            acceptance_status,
-            created_at
-          `)
-          .eq('driver_id', driverUuid)
-          .order('date', { ascending: true })
-          .order('time', { ascending: true });
-      }
-
-      // Fetch projects assigned to this driver
-      const { data: projectsData, error: projectsError } = await query;
-
       if (projectsError) {
         console.error('Error fetching driver projects:', projectsError);
         throw projectsError;
@@ -184,32 +138,11 @@ export function DriverDataProvider({ children, driverId, driverUuid, authToken }
       if (projectsData && projectsData.length > 0) {
         const companyIds = [...new Set(projectsData.map(p => p.company_id).filter(Boolean))];
         
-        let companiesQuery = supabase
-          .from('companies')
-          .select('id, name, phone')
-          .in('id', companyIds);
-
-        // Use driver client if we have a token
-        if (authToken) {
-          const driverClient = supabase.constructor(
-            supabase.supabaseUrl, 
-            supabase.supabaseKey,
-            {
-              auth: { autoRefreshToken: false, persistSession: false },
-              global: {
-                headers: { 'x-driver-token': authToken }
-              }
-            }
-          );
-          
-          companiesQuery = driverClient
+        if (companyIds.length > 0) {
+          const { data: companiesData, error: companiesError } = await driverClient
             .from('companies')
             .select('id, name, phone')
             .in('id', companyIds);
-        }
-
-        if (companyIds.length > 0) {
-          const { data: companiesData, error: companiesError } = await companiesQuery;
 
           if (companiesError) {
             console.error('Error fetching companies:', companiesError);
@@ -234,7 +167,7 @@ export function DriverDataProvider({ children, driverId, driverUuid, authToken }
         }, 2000 * (retryCount + 1)); // Exponential backoff
       }
     }
-  }, [driverUuid, retryCount, authToken]);
+  }, [driverUuid, retryCount, driverClient]);
 
   // Update project acceptance status
   const updateProjectStatus = useCallback(async (projectId: string, status: 'accepted' | 'started' | 'declined' | 'completed') => {
@@ -262,33 +195,11 @@ export function DriverDataProvider({ children, driverId, driverUuid, authToken }
 
       console.log('Sending updates to database:', updates);
 
-      let updateQuery = supabase
+      const { error } = await driverClient
         .from('projects')
         .update(updates)
         .eq('id', projectId)
         .eq('driver_id', driverUuid);
-
-      // Use driver client if we have a token
-      if (authToken) {
-        const driverClient = supabase.constructor(
-          supabase.supabaseUrl, 
-          supabase.supabaseKey,
-          {
-            auth: { autoRefreshToken: false, persistSession: false },
-            global: {
-              headers: { 'x-driver-token': authToken }
-            }
-          }
-        );
-        
-        updateQuery = driverClient
-          .from('projects')
-          .update(updates)
-          .eq('id', projectId)
-          .eq('driver_id', driverUuid);
-      }
-
-      const { error } = await updateQuery;
 
       if (error) {
         console.error('Database update error:', error);
@@ -316,7 +227,7 @@ export function DriverDataProvider({ children, driverId, driverUuid, authToken }
       console.error('Failed to update project status:', err);
       throw err;
     }
-  }, [driverUuid, authToken]);
+  }, [driverUuid, driverClient]);
 
   // Refresh projects manually
   const refreshProjects = useCallback(async () => {

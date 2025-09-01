@@ -41,7 +41,7 @@ export default function DriverLogin({ onDriverLogin }: DriverLoginProps) {
       }
       
       if (driverData) {
-        console.log('Driver login successful:', driver);
+        console.log('Driver login successful:', driverData);
         onDriverLogin(driverData.license, driverData.name, driverData.id);
       } else {
         console.log('Driver login failed - invalid credentials');

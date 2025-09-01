@@ -26,18 +26,6 @@ export default function DriverLogin({ onDriverLogin }: DriverLoginProps) {
     try {
       console.log('Attempting driver login:', { driverId, pin });
       
-      // First, check if driver exists for debugging
-      const { data: checkResult, error: checkError } = await supabase
-        .rpc('check_driver_exists', {
-          driver_license: driverId.trim()
-        });
-        
-      if (checkError) {
-        console.error('Error checking driver existence:', checkError);
-      } else {
-        console.log('Driver existence check:', checkResult);
-      }
-      
       // Use the secure authentication function
       const { data: authResult, error: authError } = await supabase
         .rpc('authenticate_driver', {

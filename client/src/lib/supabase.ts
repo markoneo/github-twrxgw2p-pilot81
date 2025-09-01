@@ -70,7 +70,7 @@ export const getDriverSupabaseClient = () => {
   // Set driver-specific configuration for RLS
   return {
     ...client,
-    setDriverContext: async (driverId: string, driverUuid: string) => {
+    setDriverContext: async (driverId: string, driverUuid: string, authToken?: string) => {
       try {
         // Set custom claims for RLS policies
         await client.rpc('set_config', {
@@ -82,6 +82,14 @@ export const getDriverSupabaseClient = () => {
           setting_name: 'app.driver_uuid', 
           setting_value: driverUuid
         });
+        
+        // Set driver token if provided
+        if (authToken) {
+          await client.rpc('set_config', {
+            setting_name: 'app.driver_token',
+            setting_value: authToken
+          });
+        }
       } catch (error) {
         console.warn('Could not set driver context:', error);
       }

@@ -59,7 +59,8 @@ export default function DirectDriverAuth() {
             state: {
               driverId: driver.license,
               driverName: driver.name,
-              driverUuid: driver.id
+              driverUuid: driver.id,
+              authToken: driver.auth_token
             }
           });
         }, 2000);

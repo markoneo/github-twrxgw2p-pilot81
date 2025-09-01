@@ -5,7 +5,7 @@ import DirectDriverAuth from './DirectDriverAuth';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 
 export default function DriverApp() {
-  const [driver, setDriver] = useState<{id: string, name: string, uuid: string} | null>(null);
+  const [driver, setDriver] = useState<{id: string, name: string, uuid: string, token?: string} | null>(null);
   const { token } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -17,7 +17,8 @@ export default function DriverApp() {
       setDriver({
         id: location.state.driverId,
         name: location.state.driverName,
-        uuid: location.state.driverUuid
+        uuid: location.state.driverUuid,
+        token: location.state.authToken
       });
       // Clear the navigation state to prevent re-processing
       navigate('/driver', { replace: true, state: {} });
@@ -50,6 +51,7 @@ export default function DriverApp() {
       driverId={driver.id}
       driverName={driver.name}
       driverUuid={driver.uuid}
+      authToken={driver.token}
       onLogout={handleDriverLogout}
     />
   );

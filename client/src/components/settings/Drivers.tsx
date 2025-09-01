@@ -1,284 +1,305 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
+import { useData } from '../../contexts/DataContext';
 
-interface DriverProject {
-  id: string;
-  company_id: string;
-  car_type_id: string;
-  client_name: string;
-  client_phone: string;
-  pickup_location: string;
-  dropoff_location: string;
-  date: string;
-  time: string;
-  passengers: number;
-  price: number;
-  driver_fee?: number;
-  status: 'active' | 'completed';
-  payment_status: 'paid' | 'charge';
-  description?: string;
-  booking_id?: string;
-  acceptance_status: 'pending' | 'accepted' | 'started' | 'declined';
-  created_at: string;
-}
+export default function Drivers() {
+  const { drivers, companies, refreshData } = useData();
+  const [editingDriver, setEditingDriver] = useState<any>(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    phone: '',
+    license: '',
+    status: 'available' as 'available' | 'busy' | 'offline',
+    pin: '1234'
+  });
 
-interface DriverCompany {
-  id: string;
-  name: string;
-  phone?: string;
-}
+  const handleEdit = (driver: any) => {
+    setEditingDriver(driver);
+    setFormData({
+      name: driver.name || '',
+      phone: driver.phone || '',
+      license: driver.license || '',
+      status: driver.status || 'available',
+      pin: String(driver.pin || '1234')
+    });
+  };
 
-interface DriverCarType {
-  id: string;
-  name: string;
-  capacity: number;
-  description?: string;
-}
-interface DriverDataContextType {
-  projects: DriverProject[];
-  companies: DriverCompany[];
-  carTypes: DriverCarType[];
-  loading: boolean;
-  error: string | null;
-  refreshProjects: () => Promise<void>;
-  updateProjectStatus: (projectId: string, status: 'accepted' | 'started' | 'declined' | 'completed') => Promise<void>;
-  retryCount: number;
-}
-
-const DriverDataContext = createContext<DriverDataContextType | null>(null);
-
-export function useDriverData() {
-  const context = useContext(DriverDataContext);
-  if (!context) {
-    throw new Error('useDriverData must be used within a DriverDataProvider');
-  }
-  return context;
-}
-
-interface DriverDataProviderProps {
-  children: React.ReactNode;
-  driverId: string;
-  driverUuid: string;
-  authToken?: string;
-}
-
-export function DriverDataProvider({ children, driverId, driverUuid, authToken }: DriverDataProviderProps) {
-  const [projects, setProjects] = useState<DriverProject[]>([]);
-  const [companies, setCompanies] = useState<DriverCompany[]>([]);
-  const [carTypes, setCarTypes] = useState<DriverCarType[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
-
-  // Create driver-specific Supabase client
-  const driverClient = React.useMemo(() => {
-    if (authToken) {
-      return createClient(
-        import.meta.env.VITE_SUPABASE_URL || "https://xvurxeuwgzmzkpgkekah.supabase.co",
-        import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh2dXJ4ZXV3Z3ptemtwZ2tla2FoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQzMDkyNzgsImV4cCI6MjA1OTg4NTI3OH0.dRa4m8yD-UV-SbBsyaolOz8sY_PmsgfRePYgkOmfb4s",
-        {
-          auth: { autoRefreshToken: false, persistSession: false },
-          global: {
-            headers: { 'x-driver-token': authToken }
-          }
-        }
-      );
-    }
-    return supabase;
-  }, [authToken]);
-
-  // Fetch driver-specific projects
-  const fetchDriverProjects = useCallback(async () => {
-    if (!driverUuid) {
-      setError('Driver ID not provided');
-      return;
-    }
+  const handleSave = async () => {
+    if (!editingDriver) return;
 
     try {
-      console.log('Fetching projects for driver UUID:', driverUuid);
+      const { error } = await supabase
+        .from('drivers')
+        .update({
+          name: formData.name,
+          phone: formData.phone,
+          license: formData.license,
+          status: formData.status,
+          pin: formData.pin
+        })
+        .eq('id', editingDriver.id);
 
-      // Use driver client for queries
-      const { data: projectsData, error: projectsError } = await driverClient
-        .from('projects')
-        .select(`
-          id,
-          company_id,
-          car_type_id,
-          client_name,
-          client_phone,
-          pickup_location,
-          dropoff_location,
-          date,
-          time,
-          passengers,
-          price,
-          driver_fee,
-          status,
-          payment_status,
-          description,
-          booking_id,
-          acceptance_status,
-          created_at
-        `)
-        .eq('driver_id', driverUuid)
-        .order('date', { ascending: true })
-        .order('time', { ascending: true });
+      if (error) throw error;
 
-      if (projectsError) {
-        console.error('Error fetching driver projects:', projectsError);
-        throw projectsError;
-      }
-
-      console.log('Fetched driver projects:', projectsData?.length || 0, 'projects');
-      setProjects(projectsData || []);
-
-      // Fetch companies for the projects
-      if (projectsData && projectsData.length > 0) {
-        const companyIds = [...new Set(projectsData.map(p => p.company_id).filter(Boolean))];
-        
-        if (companyIds.length > 0) {
-          const { data: companiesData, error: companiesError } = await driverClient
-            .from('companies')
-            .select('id, name, phone')
-            .in('id', companyIds);
-
-          if (companiesError) {
-            console.error('Error fetching companies:', companiesError);
-            // Don't throw here, we can still show projects without company details
-          } else {
-            setCompanies(companiesData || []);
-          }
-        }
-      }
-
-      setError(null);
-      setRetryCount(0);
-    } catch (err) {
-      console.error('Failed to fetch driver data:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load projects';
-      setError(errorMessage);
-      
-      // Implement retry logic for transient errors
-      if (retryCount < 3) {
-        setTimeout(() => {
-          setRetryCount(prev => prev + 1);
-        }, 2000 * (retryCount + 1)); // Exponential backoff
-      }
+      await refreshData();
+      setEditingDriver(null);
+      setFormData({
+        name: '',
+        phone: '',
+        license: '',
+        status: 'available',
+        pin: '1234'
+      });
+    } catch (error) {
+      console.error('Error updating driver:', error);
     }
-  }, [driverUuid, retryCount, driverClient]);
+  };
 
-  // Update project acceptance status
-  const updateProjectStatus = useCallback(async (projectId: string, status: 'accepted' | 'started' | 'declined' | 'completed') => {
+  const handleAdd = async () => {
     try {
-      console.log('Updating project status:', { projectId, status });
-      
-      const updates: any = {};
+      const { error } = await supabase
+        .from('drivers')
+        .insert([{
+          name: formData.name,
+          phone: formData.phone,
+          license: formData.license,
+          status: formData.status,
+          pin: formData.pin
+        }]);
 
-      // Handle different status types
-      if (status === 'completed') {
-        // For completion, update the main project status, not acceptance_status
-        updates.status = 'completed';
-        updates.completed_at = new Date().toISOString();
-        updates.completed_by = driverUuid;
-      } else {
-        // For other statuses, update acceptance_status
-        updates.acceptance_status = status;
-        
-        // If accepting, set accepted_at and accepted_by
-        if (status === 'accepted') {
-          updates.accepted_at = new Date().toISOString();
-          updates.accepted_by = driverUuid;
-        }
-      }
+      if (error) throw error;
 
-      console.log('Sending updates to database:', updates);
+      await refreshData();
+      setFormData({
+        name: '',
+        phone: '',
+        license: '',
+        status: 'available',
+        pin: '1234'
+      });
+    } catch (error) {
+      console.error('Error adding driver:', error);
+    }
+  };
 
-      const { error } = await driverClient
-        .from('projects')
-        .update(updates)
-        .eq('id', projectId)
-        .eq('driver_id', driverUuid);
+  const handleDelete = async (driverId: string) => {
+    if (!confirm('Are you sure you want to delete this driver?')) return;
 
-      if (error) {
-        console.error('Database update error:', error);
-        throw error;
-      }
+    try {
+      const { error } = await supabase
+        .from('drivers')
+        .delete()
+        .eq('id', driverId);
 
-      // Update local state
-      setProjects(prev => prev.map(project =>
-        project.id === projectId 
-          ? { 
-              ...project, 
-              ...(status === 'completed' 
-                ? { status: 'completed' }
-                : { acceptance_status: status }
-              )
-            }
-          : project
-      ));
+      if (error) throw error;
+      await refreshData();
+    } catch (error) {
+      console.error('Error deleting driver:', error);
+    }
+  };
 
-      console.log(`Project ${projectId} status updated to ${status}`);
-      
-      // Note: The real-time subscription in the main DataContext will automatically 
-      // update the dashboard, so we don't need to manually refresh here
+  const generateDriverLink = (driver: any) => {
+    const baseUrl = import.meta.env.VITE_APP_URL || 'https://www.ridepilot.org';
+    return `${baseUrl}/driver/auth/${String(driver.auth_token || '')}`;
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      alert('Link copied to clipboard!');
     } catch (err) {
-      console.error('Failed to update project status:', err);
-      throw err;
+      console.error('Failed to copy: ', err);
     }
-  }, [driverUuid, driverClient]);
+  };
 
-  // Refresh projects manually
-  const refreshProjects = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    await fetchDriverProjects();
-    setLoading(false);
-  }, [fetchDriverProjects]);
-
-  // Initial data fetch
-  useEffect(() => {
-    let mounted = true;
-
-    const loadData = async () => {
-      if (!mounted) return;
-      
-      setLoading(true);
-      await fetchDriverProjects();
-      
-      if (mounted) {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-
-    return () => {
-      mounted = false;
-    };
-  }, [fetchDriverProjects]);
-
-  // Auto-retry on error
-  useEffect(() => {
-    if (error && retryCount > 0 && retryCount <= 3) {
-      console.log(`Auto-retrying data fetch (attempt ${retryCount + 1})`);
-      fetchDriverProjects().finally(() => setLoading(false));
-    }
-  }, [retryCount, error, fetchDriverProjects]);
-
-  const value = {
-    projects,
-    companies,
-    carTypes,
-    loading,
-    error,
-    refreshProjects,
-    updateProjectStatus,
-    retryCount
+  const testDriverLink = (driver: any) => {
+    const link = generateDriverLink(driver);
+    window.open(link, '_blank');
   };
 
   return (
-    <DriverDataContext.Provider value={value}>
-      {children}
-    </DriverDataContext.Provider>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-gray-900">Drivers</h2>
+      </div>
+
+      {/* Add/Edit Driver Form */}
+      <div className="bg-white p-6 rounded-lg shadow">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">
+          {editingDriver ? 'Edit Driver' : 'Add New Driver'}
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Name</label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Phone</label>
+            <input
+              type="text"
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">License</label>
+            <input
+              type="text"
+              value={formData.license}
+              onChange={(e) => setFormData({ ...formData, license: e.target.value })}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Status</label>
+            <select
+              value={formData.status}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value as 'available' | 'busy' | 'offline' })}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            >
+              <option value="available">Available</option>
+              <option value="busy">Busy</option>
+              <option value="offline">Offline</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">PIN (4-6 digits)</label>
+            <input
+              type="text"
+              value={formData.pin}
+              onChange={(e) => setFormData({ ...formData, pin: e.target.value })}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              maxLength={6}
+              pattern="[0-9]{4,6}"
+            />
+          </div>
+        </div>
+        <div className="mt-4 flex space-x-3">
+          <button
+            onClick={editingDriver ? handleSave : handleAdd}
+            className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
+          >
+            {editingDriver ? 'Save Changes' : 'Add Driver'}
+          </button>
+          {editingDriver && (
+            <button
+              onClick={() => {
+                setEditingDriver(null);
+                setFormData({
+                  name: '',
+                  phone: '',
+                  license: '',
+                  status: 'available',
+                  pin: '1234'
+                });
+              }}
+              className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Drivers List */}
+      <div className="bg-white shadow overflow-hidden sm:rounded-md">
+        <div className="px-4 py-5 sm:p-6">
+          <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">All Drivers</h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Name
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Phone
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    License
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    PIN
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Earnings
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {drivers?.map((driver) => (
+                  <tr key={driver.id}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {driver.name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {driver.phone || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {driver.license || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        driver.status === 'available' 
+                          ? 'bg-green-100 text-green-800'
+                          : driver.status === 'busy'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {driver.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {String(driver.pin || '1234')}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      ${Number(driver.total_earnings || 0).toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                      <button
+                        onClick={() => handleEdit(driver)}
+                        className="text-indigo-600 hover:text-indigo-900"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => testDriverLink(driver)}
+                        className="text-blue-600 hover:text-blue-900"
+                      >
+                        Test Link
+                      </button>
+                      <button
+                        onClick={() => copyToClipboard(generateDriverLink(driver))}
+                        className="text-green-600 hover:text-green-900"
+                      >
+                        Copy Link
+                      </button>
+                      <button
+                        onClick={() => handleDelete(driver.id)}
+                        className="text-red-600 hover:text-red-900"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

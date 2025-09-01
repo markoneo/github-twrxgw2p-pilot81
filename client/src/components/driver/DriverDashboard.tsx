@@ -315,7 +315,6 @@ const DriverProjectCard = ({ project, companyName, carTypeName }: {
             </p>
           </div>
         )}
-      </div>
     </motion.div>
   );
 };

@@ -197,7 +197,6 @@ const DriverProjectCard = ({ project, companyName, carTypeName }: {
           </div>
             </div>
           </div>
-        </div>
 
         {/* Trip Details */}
         <div className="grid grid-cols-2 gap-4 mb-4 p-4 bg-blue-50 rounded-xl">

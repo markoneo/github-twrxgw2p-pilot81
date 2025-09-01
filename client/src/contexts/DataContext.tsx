@@ -463,7 +463,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       // Ensure all drivers have a PIN field (fallback to '1234' if missing)
       const driversWithPin = (data || []).map(driver => ({
         ...driver,
-        pin: driver.pin || '1234'
+        pin: (typeof driver.pin === 'string' && driver.pin) ? driver.pin : '1234'
       }));
 
       console.log('Fetched drivers:', driversWithPin);
